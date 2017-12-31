@@ -1,0 +1,98 @@
+#+TITLE: HDT-Client: A Simple Linked Data Browser
+#+AUTHOR: Wouter Beek
+
+Our example endpoint will be: http://hdt.lod.labs.vu.nl
+
+Our API will look like this:
+
+  - ~lod(+Endpoint, ?S, ?P, ?O)~ issues a Triple Pattern query
+    $\langle S, P, O \rangle$ against the given URL ~Endpoint~.
+
+* Sending & receiving a Linked Data request
+
+We start with issuing one single request and receiving its reply.  In
+a later section we will generalize this to perform arbitrary Triple
+Pattern requests.  Here is our example Triple Pattern request:
+
+#+BEGIN_QUOTE
+http://hdt.lod.labs.vu.nl/triple?g=LOD-a-lot&p=rdf:type&o=dbo:Place
+#+END_QUOTE
+
+Visiting the above URI in a web browser returns an HTML list of Linked
+Data resources that are places from DBpedia.
+
+#+BEGIN_SRC prolog
+
+#+END_SRC
+
+* Building the request URI
+
+The request URI consists of the following components:
+
+  - scheme
+  - authority
+  - path
+  - query
+  - fragment
+
+** Obtaining the scheme, authority, and path
+
+The first three components will be derived form the specified
+~Endpoint~, as follows:
+
+#+BEGIN_SRC prolog
+?- [library(uri)].
+?- uri_components('http://hdt.lod.labs.vu.nl', Comps).
+Comps = uri_components(http,'hdt.lod.labs.vu.nl','', _4122, _4124).
+#+END_SRC
+
+As you can see, we can easily match the scheme (~http~), authority
+(~fragments.dbpedia.org~), and path (~/2014/en~) components from the
+~Endpoint~ URI.
+
+** Creating the query
+
+The URI query component is created based on the RDF term arguments
+~S~, ~P~, and ~O~.  For example, if ~S~ and ~O~ are unbound and ~P~ is
+bound to ~'http://xmlns.com/foaf/0.1/knows'~, we want the URI to be as
+follows:
+
+#+BEGIN_SRC uri
+uri_query_components(Query, [predicate('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')]).
+Query = 'predicate=http%3A//www.w3.org/1999/02/22-rdf-syntax-ns%23type'.
+#+END_SRC
+
+Notice that ~uri_query_components/2~ takes care of percent-escaping to
+ensure that the URI query component is syntactically correct.
+
+As another example, if in addition to argument ~P~, argument ~O~ is
+bound as well, e.g., to ~http://dbpedia.org/ontology/Place~, we want
+the URI to be as follows:
+
+#+BEGIN_SRC uri
+http://hdt.lod.labs.vu.nl?predicate=http%3A//www.w3.org/1999/02/22-rdf-syntax-ns%23type&object=http%3A//dbpedia.org/ontology/Place
+#+END_SRC
+
+This means that we want to include as query components the arguments
+that are -- in Prolog terminology -- the arguments that are /ground/.
+There is a neat way in which this can be done in Prolog:
+
+#+BEGIN_SRC prolog
+  include(ground, [SParam,PParam,OParam], QueryComps),
+  uri_query_components(Query, QueryComps),
+#+END_SRC
+
+* Finalizing the code
+
+While we can immediately match the ~Scheme~, ~Authority~, and ~Path~
+components of a given ~Uri~ with ~uri_components/2~, the
+representation of the ~Comps~ compound term may change in the future.
+It is best practice to extract the individual components with the
+~uri_data/3~ predicate, as follows:
+
+#+BEGIN_SRC prolog
+  uri_components(Uri, Comps),
+  uri_data(scheme, Comps, Scheme),
+  uri_data(authority, Comps, Authority),
+  uri_data(path, Comps, Path),
+#+END_SRC
